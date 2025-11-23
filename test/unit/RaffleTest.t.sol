@@ -28,11 +28,11 @@ contract RaffleTest is CodeConstants, Test {
 
     function setUp() external {
         DeployRaffle deployer = new DeployRaffle();
-        (raffle, helperConfig) = deployer.deployContract();
+        (raffle, helperConfig) = deployer.run();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
-        entranceFee = config.entranceFee;
-        interval = config.interval;
-        vrfCoordinator = config.vrfCoordinator;
+        entranceFee = config.raffleEntranceFee;
+        interval = config.automationUpdateInterval;
+        vrfCoordinator = config.vrfCoordinatorV2_5;
         gasLane = config.gasLane;
         callbackGasLimit = config.callbackGasLimit;
         subscriptionId = config.subscriptionId;

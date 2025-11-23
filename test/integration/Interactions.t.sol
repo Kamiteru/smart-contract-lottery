@@ -5,7 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
-import {CreateSubscription, FundSubscription, AddConsumer} from "../../script/Interaction.s.sol";
+import {CreateSubscription, FundSubscription, AddConsumer} from "../../script/Interactions.s.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {LinkToken} from "test/mocks/LinkToken.sol";
 
@@ -28,7 +28,7 @@ contract InteractionTest is Test, CodeConstants {
 
     function setUp() external {
         DeployRaffle deploy = new DeployRaffle();
-        (raffle, helperConfig) = deploy.deployContract();
+        (raffle, helperConfig) = deploy.run();
         config = helperConfig.getConfig();
     }
 
@@ -36,7 +36,7 @@ contract InteractionTest is Test, CodeConstants {
         // Arrange
         CreateSubscription createSubscription = new CreateSubscription();
         // Act
-        (uint256 subId, address vrfCoordinator) = createSubscription.CreateSubscriptionUsingConfig();
+        (uint256 subId, address vrfCoordinator) = createSubscription.createSubscriptionUsingConfig();
         // Assert
         assertTrue(subId != 0, "subId should not be zero");
         (,,, address owner,) = VRFCoordinatorV2_5Mock(vrfCoordinator).getSubscription(subId);
@@ -48,7 +48,7 @@ contract InteractionTest is Test, CodeConstants {
         config = helperConfig.getConfig();
         // Act
         vm.startPrank(config.account);
-        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinator).createSubscription();
+        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).createSubscription();
         vm.stopPrank();
         // Assert
         assertTrue(subId != 0);
@@ -58,13 +58,13 @@ contract InteractionTest is Test, CodeConstants {
         // Arrange
         config = helperConfig.getConfig();
         vm.startPrank(config.account);
-        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinator).createSubscription();
+        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).createSubscription();
         vm.stopPrank();
         FundSubscription fundSubscription = new FundSubscription();
         // Act
-        fundSubscription.fundSubscription(config.vrfCoordinator, subId, config.link, config.account);
+        fundSubscription.fundSubscription(config.vrfCoordinatorV2_5, subId, config.link, config.account);
         // Assert
-        (uint96 balance,,,,) = VRFCoordinatorV2_5Mock(config.vrfCoordinator).getSubscription(subId);
+        (uint96 balance,,,,) = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).getSubscription(subId);
         assertGt(balance, 0, "Balance should be greater than 0");
     }
 
@@ -72,22 +72,22 @@ contract InteractionTest is Test, CodeConstants {
         // Arrange
         config = helperConfig.getConfig();
         vm.startPrank(config.account);
-        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinator).createSubscription();
+        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).createSubscription();
         vm.stopPrank();
-        (uint96 initialBalance,,,,) = VRFCoordinatorV2_5Mock(config.vrfCoordinator).getSubscription(subId);
+        (uint96 initialBalance,,,,) = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).getSubscription(subId);
         assertEq(initialBalance, 0, "Initial balance should be 0");
         // Act
         if (block.chainid == LOCAL_CHAIN_ID) {
             vm.startPrank(config.account);
-            VRFCoordinatorV2_5Mock(config.vrfCoordinator).fundSubscription(subId, FUND_AMOUNT * 100);
+            VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).fundSubscription(subId, FUND_AMOUNT * 100);
             vm.stopPrank();
         } else {
             vm.startPrank(config.account);
-            LinkToken(config.link).transferAndCall(config.vrfCoordinator, FUND_AMOUNT, abi.encode(subId));
+            LinkToken(config.link).transferAndCall(config.vrfCoordinatorV2_5, FUND_AMOUNT, abi.encode(subId));
             vm.stopPrank();
         }
         // Assert
-        (uint96 balance,,, address owner,) = VRFCoordinatorV2_5Mock(config.vrfCoordinator).getSubscription(subId);
+        (uint96 balance,,, address owner,) = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).getSubscription(subId);
         assertEq(owner, config.account, "Owner should be config.account");
 
         if (block.chainid == LOCAL_CHAIN_ID) {
@@ -102,13 +102,13 @@ contract InteractionTest is Test, CodeConstants {
         config = helperConfig.getConfig();
         AddConsumer addConsumer = new AddConsumer();
         vm.startPrank(config.account);
-        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinator).createSubscription();
+        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).createSubscription();
         vm.stopPrank();
         // Act
-        addConsumer.addConsumer(address(raffle), config.vrfCoordinator, subId, config.account);
+        addConsumer.addConsumer(address(raffle), config.vrfCoordinatorV2_5, subId, config.account);
         // Assert
         assertTrue(
-            VRFCoordinatorV2_5Mock(config.vrfCoordinator).consumerIsAdded(subId, address(raffle)),
+            VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).consumerIsAdded(subId, address(raffle)),
             "Raffle should be added as consumer"
         );
     }
@@ -117,14 +117,14 @@ contract InteractionTest is Test, CodeConstants {
         // Arrange
         config = helperConfig.getConfig();
         vm.startPrank(config.account);
-        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinator).createSubscription();
+        uint256 subId = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).createSubscription();
         vm.stopPrank();
         // Act
         vm.startPrank(config.account);
-        VRFCoordinatorV2_5Mock(config.vrfCoordinator).addConsumer(subId, address(raffle));
+        VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).addConsumer(subId, address(raffle));
         vm.stopPrank();
         // Assert
-        (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(config.vrfCoordinator).getSubscription(subId);
+        (,,,, address[] memory consumers) = VRFCoordinatorV2_5Mock(config.vrfCoordinatorV2_5).getSubscription(subId);
         assertEq(consumers.length, 1, "Should have exactly one consumer");
         assertEq(consumers[0], address(raffle), "Raffle should be the consumer");
     }
